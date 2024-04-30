@@ -402,6 +402,7 @@ cv_ml(str_TL_S)
 
 ## Statistical issue 4
 
+The power to detect interactive effects between multiple stressors is extremely low. Primary studies also have large Type M and Typ S errors.
 
 ```{r}
 #-----------power-----------#
