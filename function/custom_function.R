@@ -3652,3 +3652,73 @@ error_M <- function(mu, se, alpha = 0.05, N = 10000) {
   relative_error <- absolute_error/(overestimate*abs(mu))
   return(abs(overestimate) %>% round(3))
 }
+
+
+# Get the results from the model
+pred_dist_data <- function(mod_sim){
+  # Get sigmas
+  sigma2 <- mod_sim$sigma2
+  
+  # Get sampling error for mean
+  se2_mu <- mod_sim$se^2
+  
+  # Get mean estimate
+  mu <- mod_sim$b[1]
+  
+  # Names of random effect levels
+  names <- c(attr(mod_sim$s.names, "names"), 'total')
+  
+  # Sigmas for prediction interval at each level
+  cum_sigma2 <- c(sigma2 + se2_mu, sum(sigma2, se2_mu))
+  
+  # Create the dataframe
+  data <- data.frame(group =  names, 
+                     mean = mu,
+                     sd = sqrt(cum_sigma2))
+  return(data)
+}
+
+#### Calculate the proportion of effects beyond some threshold
+prop_beyond <- function(data, threshold = 0.2, tail = c("above", "below")) {
+  tail = match.arg(tail)
+  
+  # Get the mean and sd
+  mean <- data$mean
+  sd <- data$sd
+  
+  # Get the proportion beyond the threshold
+  if (tail == "above") {
+    proportion <- pnorm(threshold, mean, sd, lower.tail = FALSE)
+  } else if (tail == "below") {
+    proportion <- pnorm(threshold, mean, sd, lower.tail = TRUE)
+  } else {
+    stop("tail must be either 'above' or 'below'")
+  }
+  
+  # Return the proportion
+  return(round(proportion*100, 2))
+}
+
+#--------------------------t distribution--------------------------#
+library(extraDistr)
+
+#### Calculate the proportion of effects beyond some threshold
+propT_beyond <- function(data, df, threshold = 0.2, tail = c("above", "below")) {
+  tail = match.arg(tail)
+  
+  # Get the mean and sd
+  m <- data$mean
+  sd <- data$sd
+  
+  # Get the proportion beyond the threshold
+  if (tail == "above") {
+    proportion <- extraDistr::plst(threshold, df = df, mu = m, sigma = sd, lower.tail = FALSE)
+  } else if (tail == "below") {
+    proportion <- extraDistr::plst(threshold, df= df, mu = m, sigma = sd, lower.tail = TRUE)
+  } else {
+    stop("tail must be either 'above' or 'below'")
+  }
+  
+  # Return the proportion
+  return(round(proportion*100, 2))
+}
