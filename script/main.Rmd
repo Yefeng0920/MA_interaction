@@ -396,13 +396,21 @@ i2_ml(str_TL_S)
 cv_ml(str_TL_ES)
 cv_ml(str_TL_E)
 cv_ml(str_TL_S)
+# PI
+mod_results(str_TL_ES, group = "StudyID", data = dat)
+mod_results(str_TL_E, group = "StudyID", data = dat)
+mod_results(str_TL_S, group = "StudyID", data = dat)
 
+# PD
+propT_beyond(pred_dist_data(str_TL_ES), df = str_TL_ES$QEdf, threshold = str_TL_ES$ci.lb, tail = "below")
+propT_beyond(pred_dist_data(str_TL_E), df = str_TL_E$QEdf, threshold = str_TL_E$ci.lb, tail = "below")
+propT_beyond(pred_dist_data(str_TL_S), df = str_TL_S$QEdf, threshold = str_TL_S$ci.lb, tail = "below")
 ```
 
 
 ## Statistical issue 4
 
-The power to detect interactive effects between multiple stressors is extremely low. Primary studies also have large Type M and Type S errors.
+The power to detect interactive effects between multiple stressors is extremely low. Primary studies also have large Type M and Type S errors. The original author counted the percentage of different types of interaction effects (additive, antagonistic, and synergistic). Given the high sign errors of the primary studies, it is meaningless to count the percentage of different types of interaction effects.
 
 ```{r}
 #-----------power-----------#
