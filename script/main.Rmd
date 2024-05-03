@@ -248,24 +248,30 @@ However, the results based on multivariate approach indicate that there were no 
 
 
 ```{r}
-# multivariate approach
+# multivariate approach allowing heterogeneity to differ across different levels of a predictor
 V_0.5 <- metafor::vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dt)
 
 str_TL_mv0.5 <- rma.mv(yi = Main_effect, 
                    V = V_0.5, 
                    mods = ~Stressor - 1, 
-                   random = list(~ Stressor | StudyID), 
-                   struct = "UN",
+                   random = list(~ Stressor | StudyID, ~ Stressor | Effect_size_ID), 
+                   struct = "DIAG",
                    data = dt, method = "REML")
+
+# use LRT to test whether variance components significantly differ across different levels of stressor
+str_TL_mv0.50 <- update(str_TL_mv0.5, struct="ID")
+anova(str_TL_mv0.50, str_TL_mv0.5)
+
 # given multivariate approach is sensitive to the assumed sampling correlation, we assume different values of sampling correlation to check the robustness of the model results
 ## a higher correlation
 V_0.9 <- metafor::vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.9, data = dt)
+
 
 str_TL_mv0.9 <- rma.mv(yi = Main_effect, 
                    V = V_0.9, 
                    mods = ~Stressor - 1, 
                    random = list(~ Stressor | StudyID), 
-                   struct = "UN",
+                   struct = "DIAG",
                    data = dt, method = "REML")
 
 ## a lower correlation
@@ -275,10 +281,8 @@ str_TL_mv0.2 <- rma.mv(yi = Main_effect,
                    V = V_0.2, 
                    mods = ~Stressor - 1, 
                    random = list(~ Stressor | StudyID), 
-                   struct = "UN",
+                   struct = "DIAG",
                    data = dt, method = "REML")
-
-
 ```
 
 ### Separate analysis of two main effects and their interaction
@@ -297,6 +301,7 @@ str_TL_E <- rma.mv(yi = lnRR_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Ef
 
 ## estimates of different TrophicLevel - fig 2
 rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
 
 ## estimates of different Calcifier - fig 3
 rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
