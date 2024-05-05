@@ -89,7 +89,8 @@ str_TL <- rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*TrophicLevel-1,ra
               data = dt, method = "REML")
 
 # Predator merged using the moderator "Trophic_level"
-str_tl=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*Trophic_level-1,random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+str_tl=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*Trophic_level-1,
+              random = list(~1 | StudyID, ~1 | Effect_size_ID), 
               data = dt, method = "REML")
 
 
@@ -107,10 +108,10 @@ dt$Stressor_TrophicLevel <- paste(dt$Stressor, dt$TrophicLevel, sep = "\n")
 
 str_tl2=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor_TrophicLevel,random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dt, method = "REML")
 
-plot1 <- orchard_plot(str_tl2, mod = "Stressor_TrophicLevel", group = "StudyID",
+p_str_tl2 <- orchard_plot(str_tl2, mod = "Stressor_TrophicLevel", group = "StudyID",
              trunk.size = 0.1, xlab = "Effect size (lnRR)", angle = 45)
 
-plot1
+p_str_tl2
 ```
 
 ## Results corresponding to Fig 3
@@ -119,35 +120,82 @@ plot1
 ##### FIG 3A Effects on calcifiers at different trophic levels----
 ## calcifiers
 # unmerged predators
-calstr_TL=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*TrophicLevel-1,
-                 subset=(Calcifier=='y'),random = list(~1 | StudyID, ~1 | Effect_size_ID), 
-                 data = dt, method = "REML")
 
+# I realise that if people use subset argument in metafor - orchard does not run 
+# I need to fix it 
+
+dat1 <- subset(dt, Calcifier=='y')
+
+calstr_TL=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*TrophicLevel-1,
+                 random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                 data = dt, method = "REML")
+summary(calstr_TL)
+
+# note calstr_TL & calstr_TL are the same 
+V_0.5b <- make_VCV_matrix(data = dat1, V = "variance",cluster = "share_organism", 
+                         obs = "Effect_size_ID", type = "vcv", rho = 0.5)
+
+calstr_TL2 =rma.mv(yi = Main_effect, V = V_0.5b, mods = ~Stressor_TrophicLevel-1,
+                 random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                 data = dat1, method = "REML")
+
+summary(calstr_TL2)
+
+p_calstr_TL2 <- orchard_plot(calstr_TL2, mod = "Stressor_TrophicLevel", 
+                             group = "StudyID", trunk.size = 0.1, 
+                             xlab = "Effect size (lnRR)", angle = 45)
+
+p_calstr_TL2
 
 # Merged
-calstr_tl=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*Trophic_level-1,
-                 subset=(Calcifier=='y'),random = list(~1 | StudyID, ~1 | Effect_size_ID), 
-                 data = dt, method = "REML")
+calstr_tl=rma.mv(yi = Main_effect, V = V_0.5b, mods = ~Stressor_TrophicLevel-1,
+                 #subset=(Calcifier=='y'),
+                 random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                 data = dat1, method = "REML")
 
+p_calstr_tl <- orchard_plot(calstr_tl, mod = "Stressor_TrophicLevel", 
+                             group = "StudyID", trunk.size = 0.1, 
+                             xlab = "Effect size (lnRR)", angle = 45)
 
+p_calstr_tl
 ##### FIG 3B Effects on non-calcifiers at different trophic levels----
 ## non-calcifiers
 # Unmerged
-ncalstr_TL=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*TrophicLevel-1,
-                  subset=(Calcifier=='n'),random = list(~1 | StudyID, ~1 | Effect_size_ID), 
-                  data = dt, method = "REML")
+ncalstr_TL=rma.mv(yi = Main_effect, V = V_0.5b, mods = ~Stressor_TrophicLevel-1,
+                  #subset=(Calcifier=='n'),
+                  random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                  data = dat1, method = "REML")
 
+p_ncalstr_TL <- orchard_plot(ncalstr_TL, mod = "Stressor_TrophicLevel", 
+                             group = "StudyID", trunk.size = 0.1, 
+                             xlab = "Effect size (lnRR)", angle = 45)
+
+p_ncalstr_TL
 
 # Merged
-ncalstr_tl=rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor*Trophic_level-1,
-                  subset=(Calcifier=='n'),random = list(~1 | StudyID, ~1 | Effect_size_ID), 
-                  data = dt, method = "REML")
+ncalstr_tl=rma.mv(yi = Main_effect, V = V_0.5b, mods = ~Stressor_TrophicLevel-1,
+                  #subset=(Calcifier=='n'),
+                  random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                  data = dat1, method = "REML")
 
+p_ncalstr_tl <- orchard_plot(ncalstr_tl, mod = "Stressor_TrophicLevel", 
+                             group = "StudyID", trunk.size = 0.1, 
+                             xlab = "Effect size (lnRR)", angle = 45)
 
-noncalstre <- rma.mv(yi = Main_effect, V = V_0.5, mods = ~Stressor-1,
-                     subset=(Calcifier=='n'),
+p_ncalstr_tl
+
+noncalstre <- rma.mv(yi = Main_effect, V = V_0.5b, mods = ~Stressor-1,
+                     #subset=(Calcifier=='n'),
                      random = list(~1 | StudyID, ~1 | Effect_size_ID), 
-                     data = dt, method = "REML")
+                     data = dat1, method = "REML")
+
+p_noncalstre <- orchard_plot(noncalstre, mod = "Stressor", 
+                             group = "StudyID", trunk.size = 0.1, 
+                              trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_noncalstre
+
 ```
 
 ## Results corresponding to Fig 5
@@ -160,7 +208,11 @@ V_0.5_tropic <- make_VCV_matrix(data = tropic, V = "variance",cluster = "share_o
 tropic_model <- rma.mv(yi = Main_effect, V = V_0.5_tropic, mods = ~Stressor-1,random = list(~1 | StudyID, ~1 | Effect_size_ID), 
                        data = tropic, method = "REML")
 
+p_tropic <- orchard_plot(tropic_model, mod = "Stressor", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
 
+p_tropic
 
 sub_tropic <- filter(dt, Region2=='Sub-tropical')
 V_0.5_sub_tropical <- make_VCV_matrix(data = sub_tropic, V = "variance",cluster = "share_organism", 
@@ -168,7 +220,11 @@ V_0.5_sub_tropical <- make_VCV_matrix(data = sub_tropic, V = "variance",cluster 
 sub_t_model <- rma.mv(yi = Main_effect, V = V_0.5_sub_tropical, mods = ~Stressor-1,random = list(~1 | StudyID, ~1 | Effect_size_ID), 
                       data = sub_tropic, method = "REML")
 
+p_sub_t <- orchard_plot(sub_t_model, mod = "Stressor", group = "StudyID",
+                        trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
 
+p_sub_t
 
 temperate <- filter(dt, Region2=='Temperate')
 
@@ -176,6 +232,13 @@ V_0.5_temperate <- make_VCV_matrix(data = temperate, V = "variance",cluster = "s
                                    obs = "Effect_size_ID", type = "vcv", rho = 0.5) 
 temperate_model <- rma.mv(yi = Main_effect, V = V_0.5_temperate, mods = ~Stressor-1,random = list(~1 | StudyID, ~1 | Effect_size_ID), 
                           data = temperate, method = "REML")
+
+p_temperate <- orchard_plot(temperate_model, mod = "Stressor", group = "StudyID",
+                            trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_temperate
+
 ```
 
 
@@ -282,6 +345,12 @@ str_TL_mv0.5 <- rma.mv(yi = Main_effect,
 str_TL_mv0.50 <- update(str_TL_mv0.5, struct="ID")
 anova(str_TL_mv0.50, str_TL_mv0.5)
 
+p_str_TL_mv0.5 <- orchard_plot(str_TL_mv0.5, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_mv0.5
+
 # given multivariate approach is sensitive to the assumed sampling correlation, we assume different values of sampling correlation to check the robustness of the model results
 ## a higher correlation
 V_0.9 <- metafor::vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.9, data = dt)
@@ -294,6 +363,12 @@ str_TL_mv0.9 <- rma.mv(yi = Main_effect,
                    struct = "DIAG",
                    data = dt, method = "REML")
 
+p_str_TL_mv0.9 <- orchard_plot(str_TL_mv0.9, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_mv0.9
+
 ## a lower correlation
 V_0.2 <- metafor::vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.2, data = dt)
 
@@ -303,6 +378,13 @@ str_TL_mv0.2 <- rma.mv(yi = Main_effect,
                    random = list(~ Stressor | StudyID), 
                    struct = "DIAG",
                    data = dt, method = "REML")
+
+p_str_TL_mv0.2 <- orchard_plot(str_TL_mv0.2, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_mv0.2
+
 ```
 
 ### Separate analysis of two main effects and their interaction
@@ -317,11 +399,17 @@ However, results based on this proper approach indicate that main effect 2 (OW) 
 ## VCV
 V_0.5_E <- metafor::vcalc(vi = lnRRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
 ## estimates of main effect1
-str_TL_E <- rma.mv(yi = lnRR_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+str_TL_E <- rma.mv(yi = lnRR_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                   data = dat, method = "REML")
+
+p_str_TL_E <- orchard_plot(str_TL_E, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_E
 
 ## estimates of different TrophicLevel - fig 2
 rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
-
 
 ## estimates of different Calcifier - fig 3
 rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
@@ -335,6 +423,13 @@ rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ Region2 - 1, random = list(~1 | StudyI
 V_0.5_S <- metafor::vcalc(vi = lnRRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
 ## estimates of main effect2
 str_TL_S <- rma.mv(yi = lnRR_S, V = V_0.5_S, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_str_TL_S <- orchard_plot(str_TL_S, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_S
+
 ## estimates of different TrophicLevel - fig 2
 rma.mv(yi = lnRR_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
 ## estimates of different Calcifier - fig 3
@@ -349,6 +444,13 @@ rma.mv(yi = lnRR_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyI
 V_0.5_ES <- metafor::vcalc(vi = lnRRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
 ## estimates of interaction
 str_TL_ES <- rma.mv(yi = lnRR_ES, V = V_0.5_ES, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_str_TL_ES <- orchard_plot(str_TL_ES, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (lnRR)", flip = FALSE)
+
+p_str_TL_ES
+
 ## estimates of different TrophicLevel - fig 2
 rma.mv(yi = lnRR_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
 ## estimates of different Calcifier - fig 3
@@ -372,41 +474,124 @@ V_0.5_E <- metafor::vcalc(vi = SMDV_E, cluster = share_organism, obs = Effect_si
 ## estimates of main effect1
 str_TL_E2 <- rma.mv(yi = SMD_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
 
+p_str_TL_E2 <- orchard_plot(str_TL_E2, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_str_TL_E2
+
 ## estimates of different TrophicLevel - fig 2
 mod_fig2_E <- rma.mv(yi = SMD_E, V = V_0.5_E, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig2_E <- orchard_plot(mod_fig2_E, mod = "TrophicLevel", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig2_E
 
 ## estimates of different Calcifier - fig 3
 mod_fig3_E <- rma.mv(yi = SMD_E, V = V_0.5_E, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
 
+p_mod_fig3_E <- orchard_plot(mod_fig3_E, mod = "Calcifier", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig3_E
+
 ## estimates of different Region2 - fig 5
 mod_fig5_E <- rma.mv(yi = SMD_E, V = V_0.5_E, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig5_E <- orchard_plot(mod_fig5_E, mod = "Region2", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig5_E
+
 
 # main effect 2 - OW
 # SMD
 ## VCV
 V_0.5_S <- metafor::vcalc(vi = SMDV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
 ## estimates of main effect2
-str_TL_S2 <- rma.mv(yi = SMD_S, V = V_0.5_S, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
-## estimates of different TrophicLevel - fig 2
-mod_fig2_S <- rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
-## estimates of different Calcifier - fig 3
-mod_fig3_S <-rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
-## estimates of different Region2 - fig 5
-mod_fig5_S <-rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+str_TL_S2 <- rma.mv(yi = SMD_S, V = V_0.5_S, 
+                    random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
 
+p_str_TL_S2 <- orchard_plot(str_TL_S2, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_str_TL_S2
+
+## estimates of different TrophicLevel - fig 2
+mod_fig2_S <- rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig2_S <- orchard_plot(mod_fig2_S, mod = "TrophicLevel", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig2_S
+## estimates of different Calcifier - fig 3
+mod_fig3_S <-rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ Calcifier - 1, 
+                    random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig3_S <- orchard_plot(mod_fig3_S, mod = "Calcifier", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig3_S
+## estimates of different Region2 - fig 5
+mod_fig5_S <-rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ Region2 - 1, 
+                    random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig5_S <- orchard_plot(mod_fig5_S, mod = "Region2", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig5_S
 
 # interaction
 # SMD
 # VCV
 V_0.5_ES <- metafor::vcalc(vi = SMDV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
 ## estimates of interaction
-str_TL_ES2 <- rma.mv(yi = SMD_ES, V = V_0.5_ES, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+str_TL_ES2 <- rma.mv(yi = SMD_ES, V = V_0.5_ES, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_str_TL_ES2 <- orchard_plot(str_TL_ES2, mod = "1", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_str_TL_ES2
+
 ## estimates of different TrophicLevel - fig 2
-mod_fig2_ES <-rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+mod_fig2_ES <-rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig2_ES <- orchard_plot(mod_fig2_ES, mod = "TrophicLevel", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig2_ES
+
+
 ## estimates of different Calcifier - fig 3
-mod_fig3_ES <-rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+mod_fig3_ES <-rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ Calcifier - 1, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig3_ES <- orchard_plot(mod_fig3_ES, mod = "Calcifier", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig3_ES
 ## estimates of different Region2 - fig 5
 mod_fig5_ES <- rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+
+p_mod_fig5_ES <- orchard_plot(mod_fig5_ES, mod = "Region2", group = "StudyID",
+                          trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (SMD)", flip = FALSE)
+
+p_mod_fig5_ES
 ```
 
 ## Statistical issue 3
@@ -569,51 +754,63 @@ datV <- datV[!is.infinite(datV$lnVRV_E) & !is.infinite(datV$lnVR_S) & !is.infini
 ## VCV
 V_0.5_E <- metafor::vcalc(vi = lnVRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of main effect1
-str_TL_V_E <- rma.mv(yi = lnVR_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_E <- rma.mv(yi = lnVR_E, V = V_0.5_E, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 p_str_TL_V_E <- orchard_plot(str_TL_V_E, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
+
 p_str_TL_V_E
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_E, V = V_0.5_E, mods = ~Region2 - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## lnCVR
 ## VCV
 V_0.5_E2 <- metafor::vcalc(vi = lnCVRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of main effect1
-str_TL_V_E2 <- rma.mv(yi = lnCVR_E, V = V_0.5_E2, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_E2 <- rma.mv(yi = lnCVR_E, V = V_0.5_E2, 
+                      random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 p_str_TL_V_E2 <- orchard_plot(str_TL_V_E2, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
-p_str_TL_V_E2
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
 
+p_str_TL_V_E2
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Region2 - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 # S
 # lnVR
 ## VCV
 V_0.5_S <- metafor::vcalc(vi = lnVRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of main effect2
-str_TL_V_S <- rma.mv(yi = lnVR_S, V = V_0.5_S, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_S <- rma.mv(yi = lnVR_S, V = V_0.5_S, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 p_str_TL_V_S <- orchard_plot(str_TL_V_S, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
 
 p_str_TL_V_S
 
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 ## estimates of different Region2 - fig 5
 rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
@@ -622,59 +819,70 @@ rma.mv(yi = lnVR_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyI
 ## VCV
 V_0.5_S2 <- metafor::vcalc(vi = lnCVRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of main effect2
-str_TL_V_S2 <- rma.mv(yi = lnCVR_S, V = V_0.5_S2, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_S2 <- rma.mv(yi = lnCVR_S, V = V_0.5_S2, 
+                      random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 robust(str_TL_V_S2,cluster = StudyID, clubSandwich = T)
 
 p_str_TL_V_S2 <- orchard_plot(str_TL_V_S2, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
 
 p_str_TL_V_S2
 
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_S, V = V_0.5_S2, mods = ~ Region2 - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 # ES
 # lnVR
 # VCV
 V_0.5_ES <- metafor::vcalc(vi = lnVRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of interaction
-str_TL_V_ES <- rma.mv(yi = lnVR_ES, V = V_0.5_ES, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_ES <- rma.mv(yi = lnVR_ES, V = V_0.5_ES, 
+                      random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 p_str_TL_V_ES <- orchard_plot(str_TL_V_ES, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
 
 p_str_TL_V_ES
-
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnVR_ES, V = V_0.5_ES, mods = ~ Region2 - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 
 # lnCVR
 # VCV
 V_0.5_ES2 <- metafor::vcalc(vi = lnCVRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = datV)
 ## estimates of their interaction
-str_TL_V_ES2 <- rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+str_TL_V_ES2 <- rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, 
+                       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 
 p_str_TL_V_ES2 <- orchard_plot(str_TL_V_ES2, group = "StudyID", xlab = "lnVR (effect size)",
-                             trunk.size = 0.1)
+                            trunk.size = 0.3, branch.size = 2, flip = FALSE)
 
 p_str_TL_V_ES2
 
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ TrophicLevel - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ Calcifier - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ Calcifier - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+rma.mv(yi = lnCVR_ES, V = V_0.5_ES2, mods = ~ Region2 - 1, 
+       random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
 ```
 
