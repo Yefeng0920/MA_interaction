@@ -782,14 +782,29 @@ p_str_TL_V_E2 <- orchard_plot(str_TL_V_E2, group = "StudyID", xlab = "lnVR (effe
 
 p_str_TL_V_E2
 ## estimates of different TrophicLevel - fig 2
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ TrophicLevel - 1, 
+str_TL_V_E2a<- rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ TrophicLevel - 1, 
        random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+
+p_str_TL_V_E2a <- orchard_plot(str_TL_V_E2a, mod = "TrophicLevel", group = "StudyID", xlab = "lnVR (effect size)", trunk.size = 0.3, branch.size = 2, flip = FALSE)
+
+p_str_TL_V_E2a
+
 ## estimates of different Calcifier - fig 3
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Calcifier - 1, 
+str_TL_V_E2b <- rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Calcifier - 1, 
        random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+
+p_str_TL_V_E2b <- orchard_plot(str_TL_V_E2b, mod = "Calcifier", group = "StudyID", xlab = "lnVR (effect size)", trunk.size = 0.3, branch.size = 2, flip = FALSE)
+
+p_str_TL_V_E2b
+
 ## estimates of different Region2 - fig 5
-rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Region2 - 1, 
+str_TL_V_E2c <- rma.mv(yi = lnCVR_E, V = V_0.5_E2, mods = ~ Region2 - 1, 
        random = list(~1 | StudyID, ~1 | Effect_size_ID), data = datV, method = "REML")
+
+p_str_TL_V_E2c <- orchard_plot(str_TL_V_E2c, mod = "Region2", group = "StudyID", xlab = "lnVR (effect size)", trunk.size = 0.3, branch.size = 2, flip = FALSE)
+
+p_str_TL_V_E2c
+
 
 # S
 # lnVR
