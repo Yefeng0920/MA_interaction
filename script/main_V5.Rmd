@@ -1,0 +1,613 @@
+---
+title: "Statistical issues in multiple stressor effects and their interactions"
+author: "Yefeng Yang, Coralie Williams, Kyle Morrison, Jacob Bishop, Jinming Pan, Malgorzata Lagisz, Shinichi Nakagawa"
+output: html_document
+date: '2024-06-03'
+---
+
+# Set-up
+
+Load necessary packages and custom functions.
+
+```{r, warning=FALSE, echo=TRUE}
+set.seed(2024)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(tidyr) 
+  library(purrr)
+  library(ggplot2)
+  library(ggpubr)
+  library(here)
+  library(clubSandwich)  
+  library(metafor)
+  library(cowplot)
+  library(patchwork)
+  #library(orchaRd)
+  })
+
+# function
+source(here("function","ES calc.R"))
+source(here("function","Error calc.R"))
+source(here("function","Fig.R"))
+source(here("function","Hetero calc.R"))
+```
+
+# Original analysis
+
+The [paper](https://www.nature.com/articles/s41467-024-47563-3) we commented on is:
+
+> Hu, N., Bourdeau, P. E., & Hollander, J. (2024). Responses of marine trophic levels to the combined effects of ocean acidification and warming. Nature Communications, 15(1), 3400. https://doi.org/10.1038/s41467-024-47563-3
+
+The original analysis involved in this paper can be found at [Zenodo repository](https://doi.org/10.5281/zenodo.10198752). By original analysis, we mean the file `Code.R` (`Version v1`) published at November 22, 2023.
+
+# Re-analysis
+
+After we reviewed `Code.R` (`Version v1`), we have identified four statistical issues: 
+
+- (1) employing vote-counting–a typical underpowered method–to tally interactions between ocean acidification (OA) and ocean warming (OW),
+
+- (2) misapplication of main meta-analytic modelling approaches to estimate separate effects of two stressors, OA and OW, and their interaction (OA×OW), 
+
+- (3) failure to quantify and report heterogeneity among effect sizes, 
+
+- (4) misinterpretation of results due to neglecting differences between stressor effects on multiplicative and additive measurement scales. 
+
+## Data
+
+We downloaded the .csv dataset (`OAW_interaction.csv`) from the original authors' [Zenodo reppository](https://doi.org/10.5281/zenodo.10198734).
+
+```{r}
+# load data
+dt <- read.csv(here("dat", 'OAW_interaction.csv'))
+# only select variables that are relevant to the meta-analytic modelling
+dt2 <- select(dt, StudyID, Year, Latitude, Longitude, Abs_lat, Region, Region2, Duration, Species, Stressor, Calcifier, BiologicalResponses, TrophicLevel, Trophic_level, LifeStage, share_organism, Nc, Ne, Xc, Xe, Sc, Se)
+#dt2 <- dt[,1:35]
+#which(colnames(dt2)%in%(c("Effect_size_ID", "Factor")))
+#dt2 <- dt2[, -c(6,16)]
+# convert it into a wide format so that we can calculate different types of effect sizes
+dt_wide <- pivot_wider(dt2, names_from = Stressor,
+                       values_from = c(Ne, Xe, Se),
+                       names_sep ="_")
+# add ob ID
+dt_wide$Effect_size_ID <- 1:nrow(dt_wide)
+```
+
+
+## Effect size computation
+
+The original author provide pre-calculated effect size estimates and sampling variances without providing code used for calculating them. In case of the potential in calculating effect size estimates and sampling variances, we calculate them using our own custom functions (which can be found at `ES calc.R` or one of our earlier [published papers](https://www.sciencedirect.com/science/article/pii/S0149763422000434)) 
+
+```{r}
+# calculate effect_size 
+effect_size <- with(dt_wide, mapply(effect_set, 
+                      CC_n = Nc,
+                      CC_mean = Xc, 
+                      CC_SD = Sc,
+                      EC_n = Ne_OA, 
+                      EC_mean = Xe_OA, 
+                      EC_SD = Se_OA,
+                      CS_n = Ne_OW, 
+                      CS_mean = Xe_OW, 
+                      CS_SD = Se_OW,
+                      ES_n = Ne_interaction, 
+                      ES_mean = Xe_interaction, 
+                      ES_SD = Se_interaction,
+                      percent = "no",
+                      SIMPLIFY = FALSE
+                      ))
+effect_size <- map_dfr(effect_size, I)
+
+# remove NA
+full_info <- which(complete.cases(effect_size) == TRUE)
+# bind
+dat <- bind_cols(dt_wide, effect_size)
+dat <- dat[full_info, ]
+
+# remove Inf and -Inf
+dat <- dat[!is.infinite(dat$lnRR_E) & !is.infinite(dat$lnRRV_E) &
+             !is.infinite(dat$lnRR_S) & !is.infinite(dat$lnRRV_S) &
+             !is.infinite(dat$lnRR_ES) & !is.infinite(dat$lnRRV_ES) &
+             !is.infinite(dat$SMD_E) & !is.infinite(dat$SMDV_E) &
+             !is.infinite(dat$SMD_S) & !is.infinite(dat$SMDV_S) &
+             !is.infinite(dat$SMD_ES) & !is.infinite(dat$SMDV_ES), ]
+```
+
+
+## Statistical issue 1
+
+The power to detect interactive effects between multiple stressors is extremely low. Primary studies also have large errors in the estimation of the magnitude and sign of the effect sizes. The original author counted the percentage of different types of interaction effects (additive, antagonistic, and synergistic). Given the high sign errors of the primary studies, it is meaningless to count the percentage of different types of interaction effects.
+
+Calculating statistical power and sign errors requires the overall average effect size, which is a best proxy for the underlying 'true' effect, assuming there is no publication bias (as the case in Hu et al.; see the subsection Publication bias and sensitivity analysis in their paper). We upload the pre-fitted meta-analytic intercept models for OA, OW, and OA×OW (see Statistical issue 2 for the details of model specifications and fitting).
+
+```{r}
+# load the pre-fitted models
+## lnRR
+load(file = here("dat", 'str_TL_E.rda'))
+load(file = here("dat", 'str_TL_S.rda'))
+load(file = here("dat", 'str_TL_ES.rda'))
+## SMD
+load(file = here("dat", 'str_TL_E2.rda'))
+load(file = here("dat", 'str_TL_S2.rda'))
+load(file = here("dat", 'str_TL_ES2.rda'))
+```
+
+
+```{r}
+## lnRR
+#-----------power-----------#
+## main effect 1
+dat <- dat %>% mutate(pwr_E = power.individual_Shinichi(mu = str_TL_E$beta[1], se = sqrt(lnRRV_E)))
+summary(dat$pwr_E)
+
+## main effect 2
+dat <- dat %>% mutate(pwr_S = power.individual_Shinichi(mu = str_TL_S$beta[1], se = sqrt(lnRRV_S)))
+summary(dat$pwr_S)
+
+## interaction
+dat <- dat %>% mutate(pwr_ES = power.individual_Shinichi(mu = str_TL_ES$beta[1], se = sqrt(lnRRV_ES)))
+summary(dat$pwr_ES)
+
+#-----------Type S-----------#
+## main effect 1
+S_E <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_E[i] <- error_S(mu = str_TL_E$beta[1], se = sqrt(dat$lnRRV_E)[i])
+}
+dat$S_E <- S_E
+summary(dat$S_E)
+
+## main effect 2
+S_S <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_S[i] <- error_S(mu = str_TL_S$beta[1], se = sqrt(dat$lnRRV_S)[i])
+}
+dat$S_S <- S_S
+summary(dat$S_S)
+
+## interaction
+S_ES <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_ES[i] <- error_S(mu = str_TL_ES$beta[1], se = sqrt(dat$lnRRV_ES)[i])
+}
+dat$S_ES <- S_ES
+summary(dat$S_ES)
+
+## SMD
+#-----------power-----------#
+## main effect 1
+dat <- dat %>% mutate(pwr_E2 = power.individual_Shinichi(mu = str_TL_E2$beta[1], se = sqrt(SMDV_E)))
+summary(dat$pwr_E2)
+
+## main effect 2
+dat <- dat %>% mutate(pwr_S2 = power.individual_Shinichi(mu = str_TL_S2$beta[1], se = sqrt(SMDV_S)))
+summary(dat$pwr_S2)
+
+## interaction
+dat <- dat %>% mutate(pwr_ES2 = power.individual_Shinichi(mu = str_TL_ES2$beta[1], se = sqrt(SMDV_ES)))
+summary(dat$pwr_ES2)
+
+#-----------Type S-----------#
+## main effect 1
+S_E2 <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_E2[i] <- error_S(mu = str_TL_E2$beta[1], se = sqrt(dat$SMDV_E)[i])
+}
+dat$S_E2 <- S_E2
+summary(dat$S_E2)
+
+## main effect 2
+S_S2 <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_S2[i] <- error_S(mu = str_TL_S2$beta[1], se = sqrt(dat$SMDV_S)[i])
+}
+dat$S_S2 <- S_S2
+summary(dat$S_S2)
+
+## interaction
+S_ES2 <- numeric(nrow(dat))
+for (i in 1:nrow(dat)) {
+  S_ES2[i] <- error_S(mu = str_TL_ES2$beta[1], se = sqrt(dat$SMDV_ES)[i])
+}
+dat$S_ES2 <- S_ES2
+summary(dat$S_ES2)
+save(dat, file = here("dat", 'dat.rda'))
+```
+
+## Statistical issue 2
+
+The original authors mixed up effect sizes for different main effects and the interaction, and used a meta-regression to estimate the mean effects of different main effects and the interaction. This is both statistically and biologically wrong (details see our full paper).
+
+### Meta-regression allowing heteroscedasticity
+
+A meta-regression model used by the original authors assumes homoscedasticity, which means the variances of the two main effects and interaction are assumed to be the same. However, the empirical distribution of the effect sizes of the two main effects and interaction, as shown in Figure 2, clearly shows that two main effects and interaction have unequal variances. A tentative approach is to use multivariate meta-analysis model.
+
+However, the results based on multivariate approach indicate that 
+
+- (1) there are no main effects and interaction,
+
+- (2) the assumption of homoscedasticity is violated.
+
+```{r, warning=FALSE}
+# multivariate approach allowing heterogeneity to differ across different levels of a predictor
+V_0.5 <- vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dt)
+
+# heterogeneous heterogeneity, without assuming correlation between the true effects of the three types of stressor effects
+str_TL_mv0.51 <- rma.mv(yi = Main_effect, 
+                   V = V_0.5, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "DIAG",
+                   data = dt, method = "ML")
+summary(str_TL_mv0.51)
+str_TL_mv0.51 <- orchard_plot(str_TL_mv0.51, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (LnRR)", flip = FALSE)
+
+str_TL_mv0.51
+
+
+# heterogeneous heterogeneity, assuming correlation between the true effects of the three types of stressor effects
+str_TL_mv0.52 <- rma.mv(yi = Main_effect, 
+                   V = V_0.5, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "HCS",
+                   data = dt, method = "ML")
+# homogeneous heterogeneity
+str_TL_mv0.50 <- update(str_TL_mv0.51, struct="ID")
+
+# test whether variance components significantly differ across different levels of stressor
+anova(str_TL_mv0.50, str_TL_mv0.51)
+anova(str_TL_mv0.50, str_TL_mv0.52)
+anova(str_TL_mv0.51, str_TL_mv0.52)
+```
+
+Given multivariate approach is sensitive to the assumed sampling correlation, we assume different values of sampling correlation to check the robustness of the model results.
+
+Results corresponding to a higher correlation:
+
+```{r}
+## a higher correlation
+V_0.9 <- vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.9, data = dt)
+
+str_TL_mv0.9 <- rma.mv(yi = Main_effect, 
+                   V = V_0.9, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "DIAG",
+                   data = dt, method = "REML")
+summary(str_TL_mv0.9)
+p_str_TL_mv0.9 <- orchard_plot(str_TL_mv0.9, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (LnRR)", flip = FALSE) + labs(title = "Within-study correlation = 0.9")
+
+p_str_TL_mv0.9
+```
+
+Results corresponding to a lower correlation:
+
+```{r}
+## a lower correlation
+V_0.2 <- vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.2, data = dt)
+
+str_TL_mv0.2 <- rma.mv(yi = Main_effect, 
+                   V = V_0.2, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "DIAG",
+                   data = dt, method = "REML")
+
+summary(str_TL_mv0.2)
+
+p_str_TL_mv0.2 <- orchard_plot(str_TL_mv0.2, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (LnRR)", flip = FALSE) + labs(title = "Within-study correlation = 0.2")
+
+p_str_TL_mv0.2
+```
+
+### Stratified analysis of two main effects and their interaction
+
+Biologically, two main effects and their interaction represent three different biological processes of marine ecosystem's response to stressors, they cannot be jointly synthesized. These three types of effects represent three completely different ecological effects with different *a priori* expectations (e.g., while the OA and OW effects might have non-zero *priori* expectations, the interaction has a zero *priori*). Mering them creates artefactual heterogeneity in the model. 
+
+Because modelling heteroscedasticity in meta-regression as above is rather complex and is prone to model convergence issues, we advocate for a simpler and more straightforward approach.
+
+We use three different meta-analytic (intercept) models to separately fit the stratified dataset of OA, OW, and their interaction. This approach not only avoids artefactual mixing of different types of effects but also relaxes the assumption of homoscedasticity, providing statistically valid and interpretable results. However, results based on this proper approach also indicate discrepant results.
+
+```{r}
+# main effect 1 - OA
+## lnRR
+## VCV
+V_0.5_E <- vcalc(vi = lnRRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of main effect1
+str_TL_E <- rma.mv(yi = lnRR_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), 
+                   data = dat, method = "REML")
+# save
+save(str_TL_E, file = here("dat", 'str_TL_E.rda'))
+summary(str_TL_E)
+
+## estimates of different TrophicLevel - fig 2
+dat$TrophicLevel <- as.factor(dat$TrophicLevel)
+dat$TrophicLevel <- factor(dat$TrophicLevel, levels = c("top-predator", "meso-predator", "herbivore","primary producer"))
+str_TL_E_fig2 <- rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_E_fig2)
+save(str_TL_E_fig2, file = here("dat", 'str_TL_E_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_E_y <- vcalc(vi = lnRRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_E_fig3a1 <- rma.mv(yi = lnRR_E, V = V_0.5_E_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_E_fig3a1)
+save(str_TL_E_fig3a1, file = here("dat", 'str_TL_E_fig3a1.rda'))
+
+str_TL_E_fig3a2 <- rma.mv(yi = lnRR_E, V = V_0.5_E_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_E_fig3a2)
+save(str_TL_E_fig3a2, file = here("dat", 'str_TL_E_fig3a2.rda'))
+
+
+## n
+V_0.5_E_n <- vcalc(vi = lnRRV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+str_TL_E_fig3a3 <- rma.mv(yi = lnRR_E, V = V_0.5_E_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_E_fig3a3)
+save(str_TL_E_fig3a3, file = here("dat", 'str_TL_E_fig3a3.rda'))
+
+str_TL_E_fig3a4 <- rma.mv(yi = lnRR_E, V = V_0.5_E_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_E_fig3a4)
+save(str_TL_E_fig3a4, file = here("dat", 'str_TL_E_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+dat$Region2 <- as.factor(dat$Region2)
+dat$Region2 <- factor(dat$Region2, levels = c("Temperate", "Sub-tropical", "Tropical"))
+str_TL_E_fig5 <- rma.mv(yi = lnRR_E, V = V_0.5_E, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_E_fig5)
+save(str_TL_E_fig5, file = here("dat", 'str_TL_E_fig5.rda'))
+
+# main effect 2 - OW
+# lnRR
+## VCV
+V_0.5_S <- vcalc(vi = lnRRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of main effect2
+str_TL_S <- rma.mv(yi = lnRR_S, V = V_0.5_S, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+# save
+save(str_TL_S, file = here("dat", 'str_TL_S.rda'))
+
+## estimates of different TrophicLevel - fig 2
+str_TL_S_fig2 <- rma.mv(yi = lnRR_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_S_fig2)
+save(str_TL_S_fig2, file = here("dat", 'str_TL_S_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_S_y <- vcalc(vi = lnRRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_S_fig3a1 <- rma.mv(yi = lnRR_S, V = V_0.5_S_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_S_fig3a1)
+save(str_TL_S_fig3a1, file = here("dat", 'str_TL_S_fig3a1.rda'))
+
+str_TL_S_fig3a2 <- rma.mv(yi = lnRR_S, V = V_0.5_S_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_S_fig3a2)
+save(str_TL_S_fig3a2, file = here("dat", 'str_TL_S_fig3a2.rda'))
+
+## n
+V_0.5_S_n <- vcalc(vi = lnRRV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+str_TL_S_fig3a3 <- rma.mv(yi = lnRR_S, V = V_0.5_S_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_S_fig3a3)
+save(str_TL_S_fig3a3, file = here("dat", 'str_TL_S_fig3a3.rda'))
+
+str_TL_S_fig3a4 <- rma.mv(yi = lnRR_S, V = V_0.5_S_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_S_fig3a4)
+save(str_TL_S_fig3a4, file = here("dat", 'str_TL_S_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+str_TL_S_fig5 <- rma.mv(yi = lnRR_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_S_fig5)
+save(str_TL_S_fig5, file = here("dat", 'str_TL_S_fig5.rda'))
+
+# interaction
+# lnRR
+# VCV
+V_0.5_ES <- vcalc(vi = lnRRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of interaction
+str_TL_ES <- rma.mv(yi = lnRR_ES, V = V_0.5_ES, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+# save
+save(str_TL_ES, file = here("dat", 'str_TL_ES.rda'))
+
+## estimates of different TrophicLevel - fig 2
+str_TL_ES_fig2 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_ES_fig2)
+save(str_TL_ES_fig2, file = here("dat", 'str_TL_ES_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_ES_y <- vcalc(vi = lnRRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_ES_fig3a1 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_ES_fig3a1)
+save(str_TL_ES_fig3a1, file = here("dat", 'str_TL_ES_fig3a1.rda'))
+
+str_TL_ES_fig3a2 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_ES_fig3a2)
+save(str_TL_ES_fig3a2, file = here("dat", 'str_TL_ES_fig3a2.rda'))
+
+## n
+V_0.5_ES_n <- vcalc(vi = lnRRV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+str_TL_ES_fig3a3 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_ES_fig3a3)
+save(str_TL_ES_fig3a3, file = here("dat", 'str_TL_ES_fig3a3.rda'))
+
+str_TL_ES_fig3a4 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_ES_fig3a4)
+save(str_TL_ES_fig3a4, file = here("dat", 'str_TL_ES_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+str_TL_ES_fig5 <- rma.mv(yi = lnRR_ES, V = V_0.5_ES, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_ES_fig5)
+save(str_TL_ES_fig5, file = here("dat", 'str_TL_ES_fig5.rda'))
+```
+
+## Statistical issue 3
+
+The mean effects produced from a meta-analysis cannot be properly interpreted without an analysis of heterogeneity, or inconsistency, among effect sizes. The original author did not report heterogeneity statistics. Average effect sizes with high heterogeneity have questionable meaning. While meta-analysis of a set of similar experiments on a single species has a clear interpretation, interpreting a meta-effect across species and biogeographic contexts may be questionable. While average effects are often assumed to yield generalities, averages of highly heterogeneous effect sizes are neither generalizable nor transferable by themselves.
+
+```{r}
+# I2
+i2_ml(str_TL_E)
+i2_ml(str_TL_S)
+i2_ml(str_TL_ES)
+# CV
+cv_ml(str_TL_E)
+cv_ml(str_TL_S)
+cv_ml(str_TL_ES)
+
+# PI
+mod_results(str_TL_E, group = "StudyID", data = dat)$mod_table[,-c(1,3,4)]
+mod_results(str_TL_S, group = "StudyID", data = dat)$mod_table[,-c(1,3,4)]
+mod_results(str_TL_ES, group = "StudyID", data = dat)$mod_table[,-c(1,3,4)]
+```
+
+## Statistical issue 4
+
+It has long been known that the outcomes of both isolated and combined effects depend on the measurement scale used – whether a response metric (effect size) is analysed on an additive or multiplicative scale. However, the authors only used a multiplicative scale effect size measure (LnRR), overlooking potential interpretational pitfalls, arising from measurement scale dependence. Using additive scale (Hedge's g) to measure the main effects and their interaction leads to different conclusions.
+
+```{r}
+# main effect 1 - OA
+## SMD
+## VCV
+V_0.5_E <- vcalc(vi = SMDV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of main effect1
+str_TL_E2 <- rma.mv(yi = SMD_E, V = V_0.5_E, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+# save
+save(str_TL_E2, file = here("dat", 'str_TL_E2.rda'))
+summary(str_TL_E2)
+
+## estimates of different TrophicLevel - fig 2
+dat$TrophicLevel <- as.factor(dat$TrophicLevel)
+dat$TrophicLevel <- factor(dat$TrophicLevel, levels = c("top-predator", "meso-predator", "herbivore","primary producer"))
+str_TL_E2_fig2 <- rma.mv(yi = SMD_E, V = V_0.5_E, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_E2_fig2)
+save(str_TL_E2_fig2, file = here("dat", 'str_TL_E2_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_E_y <- vcalc(vi = SMDV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_E2_fig3a1 <- rma.mv(yi = SMD_E, V = V_0.5_E_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_E2_fig3a1)
+save(str_TL_E2_fig3a1, file = here("dat", 'str_TL_E2_fig3a1.rda'))
+
+str_TL_E2_fig3a2 <- rma.mv(yi = SMD_E, V = V_0.5_E_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_E2_fig3a2)
+save(str_TL_E2_fig3a2, file = here("dat", 'str_TL_E2_fig3a2.rda'))
+
+
+## n
+V_0.5_E_n <- vcalc(vi = SMDV_E, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+
+str_TL_E2_fig3a3 <- rma.mv(yi = SMD_E, V = V_0.5_E_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_E2_fig3a3)
+save(str_TL_E2_fig3a3, file = here("dat", 'str_TL_E2_fig3a3.rda'))
+
+str_TL_E2_fig3a4 <- rma.mv(yi = SMD_E, V = V_0.5_E_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_E2_fig3a4)
+save(str_TL_E2_fig3a4, file = here("dat", 'str_TL_E2_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+dat$Region2 <- as.factor(dat$Region2)
+dat$Region2 <- factor(dat$Region2, levels = c("Temperate", "Sub-tropical", "Tropical"))
+str_TL_E2_fig5 <- rma.mv(yi = SMD_E, V = V_0.5_E, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_E2_fig5)
+save(str_TL_E2_fig5, file = here("dat", 'str_TL_E2_fig5.rda'))
+
+# main effect 2 - OW
+# SMD
+## VCV
+V_0.5_S <- vcalc(vi = SMDV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of main effect2
+str_TL_S2 <- rma.mv(yi = SMD_S, V = V_0.5_S, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+# save
+save(str_TL_S2, file = here("dat", 'str_TL_S2.rda'))
+summary(str_TL_S2)
+
+## estimates of different TrophicLevel - fig 2
+str_TL_S2_fig2 <- rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+save(str_TL_S2_fig2, file = here("dat", 'str_TL_S2_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_S_y <- vcalc(vi = SMDV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_S2_fig3a1 <- rma.mv(yi = SMD_S, V = V_0.5_S_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_S2_fig3a1)
+save(str_TL_S2_fig3a1, file = here("dat", 'str_TL_S2_fig3a1.rda'))
+
+str_TL_S2_fig3a2 <- rma.mv(yi = SMD_S, V = V_0.5_S_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_S2_fig3a2)
+save(str_TL_S2_fig3a2, file = here("dat", 'str_TL_S2_fig3a2.rda'))
+
+## n
+V_0.5_S_n <- vcalc(vi = SMDV_S, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+str_TL_S2_fig3a3 <- rma.mv(yi = SMD_S, V = V_0.5_S_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_S2_fig3a3)
+save(str_TL_S2_fig3a3, file = here("dat", 'str_TL_S2_fig3a3.rda'))
+
+str_TL_S2_fig3a4 <- rma.mv(yi = SMD_S, V = V_0.5_S_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_S2_fig3a4)
+save(str_TL_S2_fig3a4, file = here("dat", 'str_TL_S2_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+str_TL_S2_fig5 <- rma.mv(yi = SMD_S, V = V_0.5_S, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_S2_fig5)
+save(str_TL_S2_fig5, file = here("dat", 'str_TL_S2_fig5.rda'))
+
+# interaction
+# SMD
+# VCV
+V_0.5_ES <- vcalc(vi = SMDV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dat)
+## estimates of interaction
+str_TL_ES2 <- rma.mv(yi = SMD_ES, V = V_0.5_ES, 
+                     random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+# save
+save(str_TL_ES2, file = here("dat", 'str_TL_ES2.rda'))
+summary(str_TL_ES2)
+
+## estimates of different TrophicLevel - fig 2
+str_TL_ES2_fig2 <- rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_ES2_fig2)
+save(str_TL_ES2_fig2, file = here("dat", 'str_TL_ES2_fig2.rda'))
+
+## estimates of different Calcifier - fig 3
+## y
+V_0.5_ES_y <- vcalc(vi = SMDV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="y"))
+
+str_TL_ES2_fig3a1 <- rma.mv(yi = SMD_ES, V = V_0.5_ES_y, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_ES2_fig3a1)
+save(str_TL_ES2_fig3a1, file = here("dat", 'str_TL_ES2_fig3a1.rda'))
+
+str_TL_ES2_fig3a2 <- rma.mv(yi = SMD_ES, V = V_0.5_ES_y, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="y"), method = "REML")
+summary(str_TL_ES2_fig3a2)
+save(str_TL_ES2_fig3a2, file = here("dat", 'str_TL_ES2_fig3a2.rda'))
+
+## n
+V_0.5_ES_n <- vcalc(vi = SMDV_ES, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = filter(dat,Calcifier=="n"))
+
+str_TL_ES2_fig3a3 <- rma.mv(yi = SMD_ES, V = V_0.5_ES_n, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_ES2_fig3a3)
+save(str_TL_ES2_fig3a3, file = here("dat", 'str_TL_ES2_fig3a3.rda'))
+
+str_TL_ES2_fig3a4 <- rma.mv(yi = SMD_ES, V = V_0.5_ES_n, mods = ~ TrophicLevel - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = filter(dat,Calcifier=="n"), method = "REML")
+summary(str_TL_ES2_fig3a4)
+save(str_TL_ES2_fig3a4, file = here("dat", 'str_TL_ES2_fig3a4.rda'))
+
+## estimates of different Region2 - fig 5
+str_TL_ES2_fig5 <- rma.mv(yi = SMD_ES, V = V_0.5_ES, mods = ~ Region2 - 1, random = list(~1 | StudyID, ~1 | Effect_size_ID), data = dat, method = "REML")
+summary(str_TL_ES2_fig5)
+save(str_TL_ES2_fig5, file = here("dat", 'str_TL_ES2_fig5.rda'))
+```
+

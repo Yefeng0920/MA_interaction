@@ -1,0 +1,785 @@
+---
+title: "Statistical issues in multiple stressor effects and their interactions"
+author: "Yefeng Yang, Coralie Williams, Kyle Morrison, Jacob Bishop, Jinming Pan, Malgorzata Lagisz, Shinichi Nakagawa"
+output: html_document
+date: '2024-06-03'
+---
+
+# Set-up
+
+Load necessary packages and custom functions.
+
+```{r, warning=FALSE, echo=TRUE}
+set.seed(2024)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(tidyr) 
+  library(purrr)
+  library(ggplot2)
+  library(ggpubr)
+  library(here)
+  library(clubSandwich)  
+  library(metafor)
+  library(cowplot)
+  library(patchwork)
+  #library(orchaRd)
+  })
+
+# function
+source(here("function","ES calc.R"))
+source(here("function","Error calc.R"))
+source(here("function","Fig.R"))
+source(here("function","Hetero calc.R"))
+```
+
+# Load data
+
+Load pre-processed data and pre-fitted models:
+
+```{r}
+# load data
+load(file = here("dat", 'dat.rda'))
+# LnRR
+load(file = here("dat", 'str_TL_E.rda'))
+load(file = here("dat", 'str_TL_E_fig2.rda'))
+load(file = here("dat", 'str_TL_E_fig3a1.rda'))
+load(file = here("dat", 'str_TL_E_fig3a2.rda'))
+load(file = here("dat", 'str_TL_E_fig3a3.rda'))
+load(file = here("dat", 'str_TL_E_fig3a4.rda'))
+load(file = here("dat", 'str_TL_E_fig5.rda'))
+
+load(file = here("dat", 'str_TL_S.rda'))
+load(file = here("dat", 'str_TL_S_fig2.rda'))
+load(file = here("dat", 'str_TL_S_fig3a1.rda'))
+load(file = here("dat", 'str_TL_S_fig3a2.rda'))
+load(file = here("dat", 'str_TL_S_fig3a3.rda'))
+load(file = here("dat", 'str_TL_S_fig3a4.rda'))
+load(file = here("dat", 'str_TL_S_fig5.rda'))
+
+load(file = here("dat", 'str_TL_ES.rda'))
+load(file = here("dat", 'str_TL_ES_fig2.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a1.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a2.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a3.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a4.rda'))
+load(file = here("dat", 'str_TL_ES_fig5.rda'))
+
+# SMD
+load(file = here("dat", 'str_TL_E2.rda'))
+load(file = here("dat", 'str_TL_E2_fig2.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_E2_fig5.rda'))
+
+load(file = here("dat", 'str_TL_S2.rda'))
+load(file = here("dat", 'str_TL_S2_fig2.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_S2_fig5.rda'))
+
+load(file = here("dat", 'str_TL_ES2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_ES2_fig5.rda'))
+
+```
+
+# Fig 1
+
+```{r}
+#--------------------------------------------------#
+# LnRR
+#--------------------------------------------------#
+# main effect 1 - OA
+## estimates of different TrophicLevel - fig 2
+str_TL_E_results <- mod_results(str_TL_E, mod = "1", group = "StudyID", data = dat)
+str_TL_E_fig2_results <- mod_results(str_TL_E_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsE_1 <- submerge(str_TL_E_fig2_results,str_TL_E_results)
+pE_1 <- orchard_plot(resultsE_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_E_fig3a1_results <- mod_results(str_TL_E_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_E_fig3a2_results <- mod_results(str_TL_E_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsE_2 <- submerge(str_TL_E_fig3a2_results, str_TL_E_fig3a1_results)
+
+pE_2 <- orchard_plot(resultsE_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_E_fig3a3_results <- mod_results(str_TL_E_fig3a3, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_E_fig3a4_results <- mod_results(str_TL_E_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsE_3 <- submerge(str_TL_E_fig3a4_results, str_TL_E_fig3a3_results)
+
+pE_3 <- orchard_plot(resultsE_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ cale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Region2 - fig 5
+pE_4 <- orchard_plot(str_TL_E_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect \n (multiplicative scale, LnRR)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) + 
+  labs(title = "Climate regions: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+  
+# main effect 2 - OW
+## estimates of different TrophicLevel - fig 2
+str_TL_S_results <- mod_results(str_TL_S, mod = "1", group = "StudyID", data = dat)
+str_TL_S_fig2_results <- mod_results(str_TL_S_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsS_1 <- submerge(str_TL_S_fig2_results,str_TL_S_results)
+pS_1 <- orchard_plot(resultsS_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_S_fig3a1_results <- mod_results(str_TL_S_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_S_fig3a2_results <- mod_results(str_TL_S_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsS_2 <- submerge(str_TL_S_fig3a2_results, str_TL_S_fig3a1_results)
+
+pS_2 <- orchard_plot(resultsS_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_S_fig3a3_results <- mod_results(str_TL_S_fig3a4, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_S_fig3a4_results <- mod_results(str_TL_S_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsS_3 <- submerge(str_TL_S_fig3a4_results, str_TL_S_fig3a3_results)
+
+pS_3 <- orchard_plot(resultsS_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+ 
+ 
+## estimates of different Region2 - fig 5
+pS_4 <- orchard_plot(str_TL_S_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect \n (multiplicative scale, LnRR)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) + 
+  labs(title = "Climate regions: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+# interaction
+## estimates of different TrophicLevel - fig 2
+str_TL_ES_results <- mod_results(str_TL_ES, mod = "1", group = "StudyID", data = dat)
+str_TL_ES_fig2_results <- mod_results(str_TL_ES_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsES_1 <- submerge(str_TL_ES_fig2_results,str_TL_ES_results)
+pES_1 <- orchard_plot(resultsES_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") + 
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_ES_fig3a1_results <- mod_results(str_TL_ES_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_ES_fig3a2_results <- mod_results(str_TL_ES_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsES_2 <- submerge(str_TL_ES_fig3a2_results, str_TL_ES_fig3a1_results)
+
+pES_2 <- orchard_plot(resultsES_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_ES_fig3a3_results <- mod_results(str_TL_ES_fig3a4, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_ES_fig3a4_results <- mod_results(str_TL_ES_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsES_3 <- submerge(str_TL_ES_fig3a4_results, str_TL_ES_fig3a3_results)
+
+pES_3 <- orchard_plot(resultsES_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the multiplicative scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+
+## estimates of different Region2 - fig 5
+pES_4 <- orchard_plot(str_TL_ES_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect \n (multiplicative scale, LnRR)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) +
+  labs(title = "Climate regions: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+
+
+#--------------------------------------------------#
+# Hedges' g
+#--------------------------------------------------#
+
+# main effect 1 - OA
+## estimates of different TrophicLevel - fig 2
+str_TL_E2_results <- mod_results(str_TL_E2, mod = "1", group = "StudyID", data = dat)
+str_TL_E2_fig2_results <- mod_results(str_TL_E2_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsE2_1 <- submerge(str_TL_E2_fig2_results,str_TL_E2_results)
+pE2_1 <- orchard_plot(resultsE2_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_E2_fig3a1_results <- mod_results(str_TL_E2_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_E2_fig3a2_results <- mod_results(str_TL_E2_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsE2_2 <- submerge(str_TL_E2_fig3a2_results, str_TL_E2_fig3a1_results)
+
+pE2_2 <- orchard_plot(resultsE2_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_E2_fig3a3_results <- mod_results(str_TL_E2_fig3a3, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_E2_fig3a4_results <- mod_results(str_TL_E2_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsE2_3 <- submerge(str_TL_E2_fig3a4_results, str_TL_E2_fig3a3_results)
+
+pE2_3 <- orchard_plot(resultsE2_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ cale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Region2 - fig 5
+pE2_4 <- orchard_plot(str_TL_E2_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA effect \n (at additive scale, Hedges' g)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) + 
+  labs(title = "Climate regions: OA") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_text(size = 16),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+  
+# main effect 2 - OW
+## estimates of different TrophicLevel - fig 2
+str_TL_S2_results <- mod_results(str_TL_S2, mod = "1", group = "StudyID", data = dat)
+str_TL_S2_fig2_results <- mod_results(str_TL_S2_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsS2_1 <- submerge(str_TL_S2_fig2_results,str_TL_S2_results)
+pS2_1 <- orchard_plot(resultsS2_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_S2_fig3a1_results <- mod_results(str_TL_S2_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_S2_fig3a2_results <- mod_results(str_TL_S2_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsS2_2 <- submerge(str_TL_S2_fig3a2_results, str_TL_S2_fig3a1_results)
+
+pS2_2 <- orchard_plot(resultsS2_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_S2_fig3a3_results <- mod_results(str_TL_S2_fig3a4, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_S2_fig3a4_results <- mod_results(str_TL_S2_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsS2_3 <- submerge(str_TL_S2_fig3a4_results, str_TL_S2_fig3a3_results)
+
+pS2_3 <- orchard_plot(resultsS2_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+ 
+ 
+## estimates of different Region2 - fig 5
+pS2_4 <- orchard_plot(str_TL_S2_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OW effect \n (additive scale, Hedges' g)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) + 
+  labs(title = "Climate regions: OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+# interaction
+## estimates of different TrophicLevel - fig 2
+str_TL_ES2_results <- mod_results(str_TL_ES2, mod = "1", group = "StudyID", data = dat)
+str_TL_ES2_fig2_results <- mod_results(str_TL_ES2_fig2, mod = "TrophicLevel", group = "StudyID")
+
+resultsES2_1 <- submerge(str_TL_ES2_fig2_results,str_TL_ES2_results)
+pES2_1 <- orchard_plot(resultsES2_1,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Across species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+   scale_y_continuous(limits = c(-2,1.35))
+  
+  
+## estimates of different Calcifier - fig 3
+## y
+str_TL_ES2_fig3a1_results <- mod_results(str_TL_ES2_fig3a1, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="y"))
+str_TL_ES2_fig3a2_results <- mod_results(str_TL_ES2_fig3a2, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="y"))
+
+resultsES2_2 <- submerge(str_TL_ES2_fig3a2_results, str_TL_ES2_fig3a1_results)
+
+pES2_2 <- orchard_plot(resultsES2_2,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Calcifying species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+## n
+str_TL_ES2_fig3a3_results <- mod_results(str_TL_ES2_fig3a4, mod = "1", group = "StudyID", data = filter(dat,Calcifier=="n"))
+str_TL_ES2_fig3a4_results <- mod_results(str_TL_ES2_fig3a4, mod = "TrophicLevel", group = "StudyID", data = filter(dat,Calcifier=="n"))
+
+resultsES2_3 <- submerge(str_TL_ES2_fig3a4_results, str_TL_ES2_fig3a3_results)
+
+pES2_3 <- orchard_plot(resultsES2_3,
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect at the additive scale", flip = T, angle = 50) + ggsci::scale_fill_jama() + scale_color_manual(values = c("black", "black", "black", "black", "black")) + 
+  labs(title = "Non-calcifying species: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        #axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title = element_blank()) +
+  scale_x_discrete(labels = c("Top-predator", "Meso-predator", "Herbivore", "Primary producer", "Global")) #+ scale_y_continuous(limits = c(-2,1.35))
+  
+
+## estimates of different Region2 - fig 5
+pES2_4 <- orchard_plot(str_TL_ES2_fig5, mod = "Region2", group = "StudyID",
+             trunk.size = 0.3, branch.size = 2, alpha = 0.3,
+             xlab = "OA×OW effect \n (additive scale, Hedges' g)", flip = T, angle = 50) + ggsci::scale_fill_startrek() + scale_color_manual(values = c("black", "black", "black")) +
+  labs(title = "Climate regions: OA×OW") +
+  geom_hline(yintercept = 0, color = "black", linetype = "dotted") + 
+  guides(size = "none") +
+  theme(axis.text.x = element_text(size = 16),
+        axis.text.y = element_blank(),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(size = 16, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.x = element_line(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_blank()) +
+  scale_x_discrete(labels = c("Temperate", "Sub-tropical", "Tropical")) #+ scale_y_continuous(limits = c(-2,1.35))
+
+# assembly
+#png(filename = here("figure", "figure 1.png"), width = 16, height = 27.5, units = "in", type = "windows", res = 400)
+#  pE_1 + pS_1 + pES_1 +
+#  pE2_1 + pS2_1 + pES2_1 +
+    
+#  pE_2 + pS_2 + pES_2 +
+#  pE2_2 + pS2_2 + pES2_2 +
+    
+#  pE_3 + pS_3 + pES_3 +
+#  pE2_3 + pS2_3 + pES2_3 +
+    
+#  pE_4 + pS_4 + pES_4 +
+#  pE2_4 + pS2_4 + pES2_4 + plot_layout(nrow = 8, ncol = 3) + plot_annotation(tag_levels = list(c('(A) \n Multiplicative \n (LnRR)', '(B)', '(C)', '(D) \n Additive \n (Hedges g)', '(E)', '(F)', "(G) \n Multiplicative \n (LnRR)", "(H)", "(I)", "(J) \n Additive \n (Hedges g)", "(K)", "(L)", "(M) \n Multiplicative \n (LnRR)", "(N)", "(O)", "(P) \n Additive \n (Hedges g)", "(Q)", "(R)", "(S) \n Multiplicative \n (LnRR)", "(T)", "(U)", "(V) \n Additive \n (Hedges g)", "(W)", "(X)"))) & theme(plot.tag = element_text(size = 20, face = "bold"))
+# dev.off()
+```
+
+
+# Fig 2
+
+```{r}
+# make dataframe
+df_error <- data.frame(pwr_LnRR = c(dat$pwr_E, dat$pwr_S, dat$pwr_ES),
+                       pwr_Hedgeg = c(dat$pwr_E2, dat$pwr_S2, dat$pwr_ES2),
+                       S_LnRR = c(dat$S_E, dat$S_S, dat$S_ES),
+                       S_Hedgeg = c(dat$S_E2, dat$S_S2, dat$S_ES2),
+                       Stressor = c(rep("OA",nrow(dat)), rep("OW",nrow(dat)), rep("OA×OW",rep(nrow(dat)))))
+
+# relevel
+df_error$Stressor <- as.factor(df_error$Stressor)
+df_error$Stressor <- factor(df_error$Stressor, levels = c("OA", "OW", "OA×OW"))
+
+# LnRR
+p_pwr1 <- ggdensity(df_error, x = "pwr_LnRR", facet.by = "Stressor",
+   add = "median", 
+   rug = TRUE,
+   color = "Stressor", fill = "Stressor", alpha = 1,
+   palette = c("#F0B47C", "#BE7A9A", "#7985B3")
+   ) +
+  labs(x = "Statistical power", y = "Density") +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title = element_text(size = 22),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        #legend.position = c(1, 1),
+        #legend.justification = c(1, 1),
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        legend.background = element_rect(fill = alpha("white", 0)),
+        legend.key = element_rect(fill = alpha("white", 0)),
+        strip.text = element_text(size = 20)
+        )
+
+p_S1 <- ggdensity(df_error, x = "S_LnRR", facet.by = "Stressor",
+   add = "median", 
+   rug = TRUE,
+   color = "Stressor", fill = "Stressor", alpha = 1, 
+   palette = c("#F0B47C", "#BE7A9A", "#7985B3")
+   ) +
+  labs(x = "Sign error", y = "Density") +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title = element_text(size = 22),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(size = 22)) +
+  guides(color = "none", fill = "none")
+
+# Hedges'g
+p_pwr2 <- ggdensity(df_error, x = "pwr_Hedgeg", facet.by = "Stressor",
+   add = "median", 
+   rug = TRUE,
+   color = "Stressor", fill = "Stressor", alpha = 1,
+   palette = c("#F0B47C", "#BE7A9A", "#7985B3")
+   ) +
+  labs(x = "Statistical power", y = "Density") +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title = element_text(size = 22),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        #legend.position = c(1, 1),
+        #legend.justification = c(1, 1),
+        strip.text = element_text(size = 22),
+        legend.background=element_rect(fill = alpha("white", 0)),
+        legend.key=element_rect(fill = alpha("white", 0))) +
+  guides(color = "none", fill = "none") + xlim(0, 0.4)
+
+p_S2 <- ggdensity(df_error, x = "S_Hedgeg", facet.by = "Stressor",
+   add = "median", 
+   rug = TRUE,
+   color = "Stressor", fill = "Stressor", alpha = 1, 
+   palette = c("#F0B47C", "#BE7A9A", "#7985B3")
+   ) +
+  labs(x = "Sign error", y = "Density") +
+  theme(axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20),
+        axis.title = element_text(size = 22),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.text = element_text(size = 22)) +
+  guides(color = "none", fill = "none")
+
+
+# assembly
+#png(filename = here("figure", "figure 2.png"), width = 16, height = 22, units = "in", type = "windows", res = 400)
+#  p_pwr1 / p_pwr2 / p_S1 / p_S2 + plot_layout(guides = "collect") + 
+#  plot_annotation(tag_levels = list(c('(A) \n Multiplicative \n (LnRR)', '(B) \n Additive \n (Hedges g)', '(C) \n Multiplicative \n (LnRR)', '(D) \n Additive \n (Hedges g)'))) & theme(plot.tag = element_text(size = 20, face = "bold"), legend.text = element_text(size = 20), legend.title = element_text(size = 20), legend.position = 'top')
+#dev.off()
+
+```
+
