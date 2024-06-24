@@ -1,0 +1,302 @@
+---
+title: "Statistical issues in multiple stressor effects and their interactions"
+author: "Yefeng Yang, Coralie Williams, Kyle Morrison, Jacob Bishop, Jinming Pan, Malgorzata Lagisz, Shinichi Nakagawa"
+output: html_document
+date: '2024-06-03'
+---
+
+# Set-up
+
+Load necessary packages and custom functions.
+
+```{r, warning=FALSE, echo=TRUE}
+set.seed(2024)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(readr)
+  library(tidyr) 
+  library(purrr)
+  library(ggplot2)
+  library(ggpubr)
+  library(here)
+  library(ggdist)
+  library(clubSandwich)  
+  library(metafor)
+  library(flextable)
+  library(officer)
+  library(cowplot)
+  library(openxlsx)
+  library(patchwork)
+  #library(orchaRd)
+  })
+
+# function
+source(here("function","ES calc.R"))
+source(here("function","Error calc.R"))
+source(here("function","Fig.R"))
+source(here("function","Hetero calc.R"))
+```
+
+# Load data
+
+Load pre-processed data and pre-fitted models:
+
+```{r}
+# load data
+dt <- read.csv(here("dat", 'OAW_interaction.csv'))
+load(file = here("dat", 'dat.rda'))
+# LnRR
+load(file = here("dat", 'str_TL_E.rda'))
+load(file = here("dat", 'str_TL_E_fig2.rda'))
+load(file = here("dat", 'str_TL_E_fig3a1.rda'))
+load(file = here("dat", 'str_TL_E_fig3a2.rda'))
+load(file = here("dat", 'str_TL_E_fig3a3.rda'))
+load(file = here("dat", 'str_TL_E_fig3a4.rda'))
+load(file = here("dat", 'str_TL_E_fig5.rda'))
+
+load(file = here("dat", 'str_TL_S.rda'))
+load(file = here("dat", 'str_TL_S_fig2.rda'))
+load(file = here("dat", 'str_TL_S_fig3a1.rda'))
+load(file = here("dat", 'str_TL_S_fig3a2.rda'))
+load(file = here("dat", 'str_TL_S_fig3a3.rda'))
+load(file = here("dat", 'str_TL_S_fig3a4.rda'))
+load(file = here("dat", 'str_TL_S_fig5.rda'))
+
+load(file = here("dat", 'str_TL_ES.rda'))
+load(file = here("dat", 'str_TL_ES_fig2.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a1.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a2.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a3.rda'))
+load(file = here("dat", 'str_TL_ES_fig3a4.rda'))
+load(file = here("dat", 'str_TL_ES_fig5.rda'))
+
+# SMD
+load(file = here("dat", 'str_TL_E2.rda'))
+load(file = here("dat", 'str_TL_E2_fig2.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_E2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_E2_fig5.rda'))
+
+load(file = here("dat", 'str_TL_S2.rda'))
+load(file = here("dat", 'str_TL_S2_fig2.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_S2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_S2_fig5.rda'))
+
+load(file = here("dat", 'str_TL_ES2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a1.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a2.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a3.rda'))
+load(file = here("dat", 'str_TL_ES2_fig3a4.rda'))
+load(file = here("dat", 'str_TL_ES2_fig5.rda'))
+```
+
+# Supplementary Figs
+
+## Fig 1
+
+```{r}
+p <- dat %>% ggplot(aes(x = Nc)) +
+  stat_dots(color = "#1B9E77", fill = "#D95F02", size = 1) + 
+  scale_x_continuous(limits = c(0, 30), breaks = seq(0, 30, 5)) + 
+  labs(x = "Replicate per experiment") + 
+  theme_bw() +
+  theme(
+    axis.text.y = element_blank(),  
+    axis.ticks.y = element_blank(), 
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(size = 14),
+    axis.title.x = element_text(size = 14)
+  ) +
+  geom_vline(aes(xintercept = mean(Nc)), color = "blue", linetype = "dashed", size = 1) + 
+  geom_vline(aes(xintercept = median(Nc)), color = "red", linetype = "dotted", size = 1) +
+  annotate("text", x = mean(dat$Nc), y = 0.8, label = "Mean", color = "blue", angle = 90, vjust = -0.5) +  
+  annotate("text", x = median(dat$Nc), y = 0.8, label = "Median", color = "red", angle = 90, vjust = -0.5)  
+
+#ggsave(here("figure", "SI figure 1.png"), plot = p, width = 8, height = 6, dpi = 600)
+png(here("figure", "SI figure 1.png"), width = 8*600, height = 6*600, res = 600)
+print(p)
+dev.off()
+```
+
+
+
+## Fig 2
+
+```{r}
+
+dt$Stressor <- as.factor(dt$Stressor)
+dt$Stressor <- factor(dt$Stressor, levels = c("OA", "OW", "interaction"))
+m <- rma.mv(yi = Main_effect, 
+                   V = V_0.5, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "DIAG",
+                   data = dt, method = "ML")
+
+p <- orchard_plot(m, mod = "Stressor", group = "StudyID",
+                               trunk.size = 0.3, branch.size = 2,
+                            xlab = "Effect size (LnRR)", flip = FALSE) +
+  scale_x_discrete(labels = c("OA", "OW", "OA×OW ")) +
+  labs(x = "Stressor effects and interaction") +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 14))
+
+png(here("figure", "SI figure 2.png"), width = 8*600, height = 6*600, res = 600)
+print(p)
+dev.off()
+```
+
+
+# Supplementary Tables
+
+## Table 1
+
+```{r}
+summary_df <- dat %>%
+  summarise(
+    `Min` = min(pwr_E, na.rm = TRUE),
+    `1st Qu.` = quantile(pwr_E, 0.25, na.rm = TRUE),
+    `Median` = median(pwr_E, na.rm = TRUE),
+    `Mean` = mean(pwr_E, na.rm = TRUE),
+    `3rd Qu.` = quantile(pwr_E, 0.75, na.rm = TRUE),
+    `Max` = max(pwr_E, na.rm = TRUE),
+    
+    `Min ` = min(pwr_S, na.rm = TRUE),
+    `1st Qu. ` = quantile(pwr_S, 0.25, na.rm = TRUE),
+    `Median ` = median(pwr_S, na.rm = TRUE),
+    `Mean ` = mean(pwr_S, na.rm = TRUE),
+    `3rd Qu. ` = quantile(pwr_S, 0.75, na.rm = TRUE),
+    `Max ` = max(pwr_S, na.rm = TRUE),
+    
+    `Min  ` = min(pwr_ES, na.rm = TRUE),
+    `1st Qu.  ` = quantile(pwr_ES, 0.25, na.rm = TRUE),
+    `Median  ` = median(pwr_ES, na.rm = TRUE),
+    `Mean  ` = mean(pwr_ES, na.rm = TRUE),
+    `3rd Qu.  ` = quantile(pwr_ES, 0.75, na.rm = TRUE),
+    `Max  ` = max(pwr_ES, na.rm = TRUE),
+    
+    `Min   ` = min(S_E, na.rm = TRUE),
+    `1st Qu.   ` = quantile(S_E, 0.25, na.rm = TRUE),
+    `Median   ` = median(S_E, na.rm = TRUE),
+    `Mean   ` = mean(S_E, na.rm = TRUE),
+    `3rd Qu.   ` = quantile(S_E, 0.75, na.rm = TRUE),
+    `Max   ` = max(S_E, na.rm = TRUE),
+    
+    `Min    ` = min(S_S, na.rm = TRUE),
+    `1st Qu.    ` = quantile(S_S, 0.25, na.rm = TRUE),
+    `Median    ` = median(S_S, na.rm = TRUE),
+    `Mean    ` = mean(S_S, na.rm = TRUE),
+    `3rd Qu.    ` = quantile(S_S, 0.75, na.rm = TRUE),
+    `Max    ` = max(S_S, na.rm = TRUE),
+    
+    `Min     ` = min(S_ES, na.rm = TRUE),
+    `1st Qu.     ` = quantile(S_ES, 0.25, na.rm = TRUE),
+    `Median     ` = median(S_ES, na.rm = TRUE),
+    `Mean     ` = mean(S_ES, na.rm = TRUE),
+    `3rd Qu.     ` = quantile(S_ES, 0.75, na.rm = TRUE),
+    `Max     ` = max(S_ES, na.rm = TRUE)
+  ) %>% dfround(3)
+write.xlsx(summary_df, here("figure", "SI Table 1.xlsx"))
+
+summary_df <- dat %>%
+  summarise(
+    `Min` = min(pwr_E2, na.rm = TRUE),
+    `1st Qu.` = quantile(pwr_E2, 0.25, na.rm = TRUE),
+    `Median` = median(pwr_E2, na.rm = TRUE),
+    `Mean` = mean(pwr_E2, na.rm = TRUE),
+    `3rd Qu.` = quantile(pwr_E2, 0.75, na.rm = TRUE),
+    `Max` = max(pwr_E2, na.rm = TRUE),
+    
+    `Min ` = min(pwr_S2, na.rm = TRUE),
+    `1st Qu. ` = quantile(pwr_S2, 0.25, na.rm = TRUE),
+    `Median ` = median(pwr_S2, na.rm = TRUE),
+    `Mean ` = mean(pwr_S2, na.rm = TRUE),
+    `3rd Qu. ` = quantile(pwr_S2, 0.75, na.rm = TRUE),
+    `Max ` = max(pwr_S2, na.rm = TRUE),
+    
+    `Min  ` = min(pwr_ES2, na.rm = TRUE),
+    `1st Qu.  ` = quantile(pwr_ES2, 0.25, na.rm = TRUE),
+    `Median  ` = median(pwr_ES2, na.rm = TRUE),
+    `Mean  ` = mean(pwr_ES2, na.rm = TRUE),
+    `3rd Qu.  ` = quantile(pwr_ES2, 0.75, na.rm = TRUE),
+    `Max  ` = max(pwr_ES2, na.rm = TRUE),
+    
+    `Min   ` = min(S_E2, na.rm = TRUE),
+    `1st Qu.   ` = quantile(S_E2, 0.25, na.rm = TRUE),
+    `Median   ` = median(S_E2, na.rm = TRUE),
+    `Mean   ` = mean(S_E2, na.rm = TRUE),
+    `3rd Qu.   ` = quantile(S_E2, 0.75, na.rm = TRUE),
+    `Max   ` = max(S_E2, na.rm = TRUE),
+    
+    `Min    ` = min(S_S2, na.rm = TRUE),
+    `1st Qu.    ` = quantile(S_S2, 0.25, na.rm = TRUE),
+    `Median    ` = median(S_S2, na.rm = TRUE),
+    `Mean    ` = mean(S_S2, na.rm = TRUE),
+    `3rd Qu.    ` = quantile(S_S2, 0.75, na.rm = TRUE),
+    `Max    ` = max(S_S2, na.rm = TRUE),
+    
+    `Min     ` = min(S_ES2, na.rm = TRUE),
+    `1st Qu.     ` = quantile(S_ES2, 0.25, na.rm = TRUE),
+    `Median     ` = median(S_ES2, na.rm = TRUE),
+    `Mean     ` = mean(S_ES2, na.rm = TRUE),
+    `3rd Qu.     ` = quantile(S_ES2, 0.75, na.rm = TRUE),
+    `Max     ` = max(S_ES2, na.rm = TRUE)
+  ) %>% dfround(3)
+write.xlsx(summary_df, here("figure", "SI Table 12.xlsx"))
+```
+
+## Table 2
+
+```{r}
+V_0.5 <- vcalc(vi = variance, cluster = share_organism, obs = Effect_size_ID, rho = 0.5, data = dt)
+str_TL_mv0.51 <- rma.mv(yi = Main_effect, 
+                   V = V_0.5, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "DIAG",
+                   data = dt, method = "ML")
+str_TL_mv0.52 <- rma.mv(yi = Main_effect, 
+                   V = V_0.5, 
+                   mods = ~Stressor - 1, 
+                   random = list(~ Stressor | StudyID), 
+                   struct = "HCS",
+                   data = dt, method = "ML")
+str_TL_mv0.50 <- update(str_TL_mv0.51, struct="ID")
+
+t <- anova(str_TL_mv0.50, str_TL_mv0.51) %>% as.data.frame()
+t2 <- anova(str_TL_mv0.50, str_TL_mv0.52) %>% as.data.frame()
+t3 <- anova(str_TL_mv0.51, str_TL_mv0.52) %>% as.data.frame()
+write.xlsx(t, here("figure", "SI Table 2.xlsx"))
+write.xlsx(t2, here("figure", "SI Table 22.xlsx"))
+write.xlsx(t3, here("figure", "SI Table 23.xlsx"))
+```
+
+
+## Table 3 
+
+```{r}
+# I2
+i2_ml(str_TL_E)
+i2_ml(str_TL_S)
+i2_ml(str_TL_ES)
+# CV
+cv_ml(str_TL_E)
+cv_ml(str_TL_S)
+cv_ml(str_TL_ES)
+
+t <- data.frame(rbind(i2_ml(str_TL_E), i2_ml(str_TL_S), i2_ml(str_TL_ES))) %>% dfround(1)
+t2 <- data.frame(rbind(cv_ml(str_TL_E), cv_ml(str_TL_S), cv_ml(str_TL_ES))) %>% dfround(1)
+t3 <- data.frame(rbind(i2_ml(str_TL_E2), i2_ml(str_TL_S2), i2_ml(str_TL_ES2))) %>% dfround(1)
+t4 <- data.frame(rbind(cv_ml(str_TL_E2), cv_ml(str_TL_S2), cv_ml(str_TL_ES2))) %>% dfround(1)
+
+write.xlsx(t, here("figure", "SI Table 3.xlsx"))
+write.xlsx(t2, here("figure", "SI Table 32.xlsx"))
+write.xlsx(t3, here("figure", "SI Table 33.xlsx"))
+write.xlsx(t4, here("figure", "SI Table 34.xlsx"))
+```
