@@ -89,7 +89,6 @@ load(file = here("dat", 'str_TL_ES2_fig3a2.rda'))
 load(file = here("dat", 'str_TL_ES2_fig3a3.rda'))
 load(file = here("dat", 'str_TL_ES2_fig3a4.rda'))
 load(file = here("dat", 'str_TL_ES2_fig5.rda'))
-
 ```
 
 # Fig 1
